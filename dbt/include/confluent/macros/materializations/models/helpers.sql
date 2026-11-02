@@ -173,6 +173,12 @@ WITH (
   {% if should_full_refresh() %}
     {{ return('create') }}
   {% endif %}
+  {# A view holds no data and no long-running statement, and it is never the
+     relation this materialization produces, so replace it rather than
+     mistaking it for an up-to-date table and skipping. #}
+  {% if existing_relation.is_view %}
+    {{ return('create') }}
+  {% endif %}
   {% if recoverable and adapter.statement_needs_restart(get_statement_name()) %}
     {{ return('restart') }}
   {% endif %}
