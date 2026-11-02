@@ -230,7 +230,8 @@ WITH (
        'ignore' — no check, except the restart path still needs a columns-only check (benign
                   options/distribution drift is fine, but a column mismatch would make the
                   re-submitted INSERT fail at Flink, or write NULL into a table column the model
-                  no longer selects).
+                  no longer selects), and a materialized table is still refused rather than
+                  adopted.
      Validated here, the single place on_schema_drift is consumed. #}
   {% set on_schema_drift = config.get('on_schema_drift', 'fail') %}
   {% if on_schema_drift == 'fail' %}
@@ -238,6 +239,10 @@ WITH (
   {% elif on_schema_drift == 'ignore' %}
     {% if restart %}
       {{ check_for_schema_drift(existing_relation, has_select_query, enforce='columns') }}
+    {% elif execute %}
+      {# Not drift: a materialized table can't be managed here under any setting,
+         and skipping would leave Flink maintaining the old defining query. #}
+      {% do adapter.raise_if_materialized_table(existing_relation) %}
     {% endif %}
   {% else %}
     {% set msg = "Invalid value for on_schema_drift ('%s'). Expected 'ignore' or 'fail'." % on_schema_drift %}

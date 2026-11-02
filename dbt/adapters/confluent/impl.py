@@ -433,6 +433,19 @@ class ConfluentAdapter(SQLAdapter):
             return "materialized_table"
         return "regular"
 
+    @available
+    def raise_if_materialized_table(self, relation: ConfluentRelation) -> None:
+        """Raise CompilationError if `relation` is a Flink materialized table.
+
+        For callers that skip the schema drift check (`on_schema_drift='ignore'`) but must still
+        refuse to adopt a materialized table as a regular one. One live catalog probe, skipped
+        for views, which can't be materialized tables.
+        """
+        if relation.type != "view":
+            self._raise_if_materialized(
+                relation, self.get_relation_kind(relation) == "materialized_table"
+            )
+
     def drop_relation(self, relation: BaseRelation) -> None:
         """Drop a relation, routing Flink materialized tables to the MT drop.
 

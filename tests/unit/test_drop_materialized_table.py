@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from confluent_sql.exceptions import OperationalError
-from dbt_common.exceptions import DbtDatabaseError
+from dbt_common.exceptions import CompilationError, DbtDatabaseError
 
 from dbt.adapters.confluent.impl import ConfluentAdapter
 
@@ -135,6 +135,30 @@ class TestGetRelationKind:
     def test_materialized_table(self, adapter, relation):
         _wire_execute(adapter, [_is_materialized_result("YES")])
         assert adapter.get_relation_kind(relation) == "materialized_table"
+
+
+class TestRaiseIfMaterializedTable:
+    """The guard used where the schema drift check is skipped (on_schema_drift='ignore')."""
+
+    def test_materialized_table_raises(self, adapter, relation):
+        _wire_execute(adapter, [_is_materialized_result("YES")])
+        with pytest.raises(CompilationError, match="exists as a Flink materialized table"):
+            adapter.raise_if_materialized_table(relation)
+
+    def test_regular_table_passes(self, adapter, relation):
+        _wire_execute(adapter, [_is_materialized_result("NO")])
+        adapter.raise_if_materialized_table(relation)
+
+    def test_absent_relation_passes(self, adapter, relation):
+        _wire_execute(adapter, [_is_materialized_result()])
+        adapter.raise_if_materialized_table(relation)
+
+    def test_view_skips_the_catalog_probe(self, adapter, relation):
+        view = MagicMock()
+        view.type = "view"
+        adapter.execute = MagicMock()
+        adapter.raise_if_materialized_table(view)
+        adapter.execute.assert_not_called()
 
 
 class TestDropRelationRouting:

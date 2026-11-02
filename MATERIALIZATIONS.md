@@ -1061,7 +1061,7 @@ Control drift detection behavior with the `on_schema_drift` config:
 
 **Options**:
 - `fail` (default) - Raise an error if schema drift is detected
-- `ignore` - Skip drift detection entirely; always skip if the table exists
+- `ignore` - Skip drift detection; always skip if the table exists. An existing Flink materialized table is still refused, since it can't be managed by these materializations.
 
 **Example**:
 ```sql
